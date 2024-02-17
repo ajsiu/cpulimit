@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <libproc.h>
+#include <stdlib.h>
+#include <string.h>
 
 int unique_nonzero_ints(int* arr_in, int len_in, int* arr_out) {
 	int* source = arr_in;
