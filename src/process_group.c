@@ -140,7 +140,7 @@ void update_process_group(struct process_group *pgroup)
 	clear_list(pgroup->proclist);
 	init_list(pgroup->proclist, 4);
 
-	while (get_next_process(&it, &tmp_process) != -1)
+	while (get_next_process(&it, &tmp_process) != -1) //CLARIFICATION: get_next_process is putting proc info in tmp_process
 	{
 //		struct timeval t;
 //		gettimeofday(&t, NULL);
@@ -173,18 +173,19 @@ void update_process_group(struct process_group *pgroup)
 			else
 			{
 				assert(tmp_process.pid == p->pid);
-				assert(tmp_process.starttime == p->starttime);
+				assert(tmp_process.starttime == p->starttime);//makes sure that they are referencing same proc
 				add_elem(pgroup->proclist, p);
 				if (dt < MIN_DT) continue;
 				//process exists. update CPU usage
-				double sample = 1.0 * (tmp_process.cputime - p->cputime) / dt;
+				double sample = 1.0 * (tmp_process.cputime - p->cputime) / dt; //change in cpu time over delta_t
 				if (p->cpu_usage == -1) {
 					//initialization
 					p->cpu_usage = sample;
 				}
 				else {
 					//usage adjustment
-					p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
+					//p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
+                    p->cpu_usage = sample;//trying this as the given values were inaccurate
 				}
 				p->cputime = tmp_process.cputime;
 			}

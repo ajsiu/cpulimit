@@ -28,6 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+//done so that my linter isn't going insane
+#ifndef __PROCESS_GROUP_H
+#include "process_group.h"
+#endif
+
 int unique_nonzero_ints(int* arr_in, int len_in, int* arr_out) {
 	int* source = arr_in;
 	if (arr_out == NULL) return -1;
@@ -65,7 +70,7 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 	if ((it->pidlist = (int *)malloc((it->count)*sizeof(int))) == NULL) {
 		fprintf(stderr, "malloc: %s\n", strerror(errno));
 	}
-	if ((it->count = proc_listpids(PROC_ALL_PIDS, 0, it->pidlist, it->count)) <= 0) {
+	if ((it->count = proc_listpids(PROC_ALL_PIDS, 0, it->pidlist, it->count)) <= 0) {//above asks the kernel for a list of all pids
 		fprintf(stderr, "proc_listpids: %s\n", strerror(errno));
 		return -1;
 	}
@@ -87,14 +92,14 @@ static int pti2proc(struct proc_taskallinfo *ti, struct process *process) {
 
 static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti) {
 	int bytes;
-	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(*ti));
+	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(struct proc_taskallinfo));// syscall that gets the proc_taskallinfo for pid
 	if (bytes <= 0) {
 		if (!(errno & (EPERM | ESRCH))) {
 			fprintf(stderr, "proc_pidinfo: %s\n", strerror(errno));
 		}
 		return -1;
-	} else if (bytes < sizeof(ti)) {
-		fprintf(stderr, "proc_pidinfo: too few bytes; expected %ld, got %d\n", sizeof(ti), bytes);
+	} else if (bytes < sizeof(struct proc_taskallinfo)) {
+		fprintf(stderr, "proc_pidinfo: too few bytes; expected %ld, got %d\n", sizeof(struct proc_taskallinfo), bytes);
 		return -1;
 	}
 	return 0;
@@ -113,21 +118,21 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 	}
 	while (it->i < it->count) {
 		struct proc_taskallinfo ti;
-		if (get_process_pti(it->pidlist[it->i], &ti) != 0) {
+		if (get_process_pti(it->pidlist[it->i], &ti) != 0) { //if failed to get proc task Info
 			it->i++;
 			continue;
 		}
-		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) {
+		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) { //if system proc flag is flipped
 			it->i++;
 			continue;
 		}
 		if (it->filter->pid != 0 && it->filter->include_children) {
-			pti2proc(&ti, p);
+			pti2proc(&ti, p);//remeber p is passed on reference
 			it->i++;
 			if (p->pid != it->pidlist[it->i - 1]) // I don't know why this can happen
 				continue;
-			if (p->pid != it->filter->pid && p->ppid != it->filter->pid)
-				continue;
+			if (p->pid != it->filter->pid && p->ppid != it->filter->pid) // checks if the pid isn't a direct child
+                continue;                                                // or the same as the one in filter. Continues if not
 			return 0;
 		}
 		else if (it->filter->pid == 0)
