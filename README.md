@@ -5,25 +5,28 @@ Cpulimit is a tool which limits the CPU usage of a process (expressed in percent
 The control of the used CPU amount is done sending SIGSTOP and SIGCONT POSIX signals to processes.
 All the children processes and threads of the specified process will share the same percentage of CPU.
 
-Developed by Angelo Marletta.
-Please send your feedback, bug reports, feature requests or just thanks.
+Forked from:
+https://github.com/opsengine/cpulimit
 
 
-Get the latest source code
+Changes
 --------------------------
 
-The latest available code is here:
-
-https://github.com/opsengine/cpulimit
+cpulimit now fully supports M1 Mac.
 
 
 Install instructions
 --------------------
 
-On Linux/OS X:
+On Linux:
 
     $ make
     # cp src/cpulimit /usr/bin
+
+On OS X:
+
+    $ make
+    # cp src/cpulimit /usr/local/bin
 
 On FreeBSD:
 
@@ -38,5 +41,9 @@ Run unit tests:
 Contributions
 -------------
 
-You are welcome to contribute to cpulimit with bugfixes, new features, or support for a new OS.
-If you want to submit a pull request, please do it on the branch develop and make sure all tests pass.
+If you have any changes, bug fixes, or additional features your best bet is to fork it. I'm not really committed to maintaining this repo.
+
+Todo
+----
+
+Add the ability to calculate the timeslice (quantum) of a process.
