@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <libgen.h>
+#include <stdint.h>
 
 #include <assert.h>
 
@@ -133,14 +134,14 @@ void update_process_group(struct process_group *pgroup)
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	//time elapsed from previous sample (in ms)
-	long dt = timediff(&now, &pgroup->last_update) / 1000;
+	long  dt = timediff(&now, &pgroup->last_update) / 1000;
 	filter.pid = pgroup->target_pid;
 	filter.include_children = pgroup->include_children;
 	init_process_iterator(&it, &filter);
 	clear_list(pgroup->proclist);
 	init_list(pgroup->proclist, 4);
 
-	while (get_next_process(&it, &tmp_process) != -1) //CLARIFICATION: get_next_process is putting proc info in tmp_process
+	while (get_next_process(&it, &tmp_process) != -1)//get_next_process is putting proc info in tmp_process to compare with what's in pgroup
 	{
 //		struct timeval t;
 //		gettimeofday(&t, NULL);
@@ -177,15 +178,15 @@ void update_process_group(struct process_group *pgroup)
 				add_elem(pgroup->proclist, p);
 				if (dt < MIN_DT) continue;
 				//process exists. update CPU usage
-				double sample = 1.0 * (tmp_process.cputime - p->cputime) / dt; //change in cpu time over delta_t
+                uint64_t deltaCPU = tmp_process.cputime - p->cputime;//old code was prematurely casting to double I think.
+				double sample = 1.0 * (deltaCPU) / dt;
 				if (p->cpu_usage == -1) {
 					//initialization
 					p->cpu_usage = sample;
 				}
 				else {
 					//usage adjustment
-					//p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
-                    p->cpu_usage = sample;//trying this as the given values were inaccurate
+					p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
 				}
 				p->cputime = tmp_process.cputime;
 			}

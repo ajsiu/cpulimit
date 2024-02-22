@@ -27,8 +27,8 @@
 #include <libproc.h>
 #include <stdlib.h>
 #include <string.h>
+#include <mach/mach_time.h>
 
-//done so that my linter isn't going insane
 #ifndef __PROCESS_GROUP_H
 #include "process_group.h"
 #endif
@@ -81,18 +81,31 @@ int init_process_iterator(struct process_iterator *it, struct process_filter *fi
 
 static int pti2proc(struct proc_taskallinfo *ti, struct process *process) {
 	int bytes;
+    mach_timebase_info_data_t timeInfo;
+    kern_return_t kr;
+    if ( (kr = mach_timebase_info( &timeInfo ) ) != KERN_SUCCESS) {//apple changed it so that now the kernel returns time in mach tics
+        fprintf(stderr, "failed to get mach_timebase_info with: %d\n", kr);
+        return -1;
+    }
+    uint64_t user = ( (ti->ptinfo.pti_total_system * timeInfo.numer) / timeInfo.denom ) / (uint64_t) 1e6;//converts time to nano and then millis
+    uint64_t system = ( (ti->ptinfo.pti_total_user * timeInfo.numer) / timeInfo.denom ) / (uint64_t) 1e6;
 	process->pid = ti->pbsd.pbi_pid;
-	process->ppid = ti->pbsd.pbi_ppid;
+	process->ppid = ti->pbsd.pbi_ppid;//probable overflow error 
 	process->starttime = ti->pbsd.pbi_start_tvsec;
-	process->cputime = (ti->ptinfo.pti_total_user + ti->ptinfo.pti_total_system) / 1000000;
+	process->cputime = user + system;
+    //https://github.com/giampaolo/psutil/blob/324b297de09feb1d5982db1145db2b6a6a4609b8/psutil/_psutil_osx.c 
 	bytes = strlen(ti->pbsd.pbi_comm);
 	memcpy(process->command, ti->pbsd.pbi_comm, (bytes < PATH_MAX ? bytes : PATH_MAX) + 1);
 	return 0;
 }
 
+//Small Note: doing things this way allows the program to avoid going through mach to get all of the information like in libtop
+//The main advantage is that this can work without an entitlment. I'm not entirley sure if there is an advantage to doing it 
+//the way libtop does though. It could potentially be more consistent from Intel to Arm, idk. The XNU kernel is a mess.
+//and poorly documented. Change at your own discretion.
 static int get_process_pti(pid_t pid, struct proc_taskallinfo *ti) {
-	int bytes;
-	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(struct proc_taskallinfo));// syscall that gets the proc_taskallinfo for pid
+	int bytes; 
+	bytes = proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, ti, sizeof(struct proc_taskallinfo));
 	if (bytes <= 0) {
 		if (!(errno & (EPERM | ESRCH))) {
 			fprintf(stderr, "proc_pidinfo: %s\n", strerror(errno));
@@ -118,16 +131,16 @@ int get_next_process(struct process_iterator *it, struct process *p) {
 	}
 	while (it->i < it->count) {
 		struct proc_taskallinfo ti;
-		if (get_process_pti(it->pidlist[it->i], &ti) != 0) { //if failed to get proc task Info
+		if (get_process_pti(it->pidlist[it->i], &ti) != 0) {//if failed to get proc task Info
 			it->i++;
 			continue;
 		}
-		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) { //if system proc flag is flipped
+		if (ti.pbsd.pbi_flags & PROC_FLAG_SYSTEM) {//if system proc flag is flipped
 			it->i++;
 			continue;
 		}
 		if (it->filter->pid != 0 && it->filter->include_children) {
-			pti2proc(&ti, p);//remeber p is passed on reference
+			pti2proc(&ti, p);
 			it->i++;
 			if (p->pid != it->pidlist[it->i - 1]) // I don't know why this can happen
 				continue;

@@ -28,6 +28,7 @@
  */
 
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -234,7 +235,7 @@ void limit_process(pid_t pid, double limit, int include_children)
 		//estimate how much the controlled processes are using the cpu in the working interval
 		for (node = pgroup.proclist->first; node != NULL; node = node->next) {
 			struct process *proc = (struct process*)(node->data);
-			if (proc->cpu_usage < 0) {
+			if (proc->cpu_usage <= 0) {
 				continue;
 			}
 			if (pcpu < 0) pcpu = 0;
@@ -250,8 +251,9 @@ void limit_process(pid_t pid, double limit, int include_children)
 		}
 		else {
 			//adjust workingrate
-			workingrate = MIN(workingrate / pcpu * limit, 1);
-			twork.tv_nsec = TIME_SLOT * 1000 * workingrate;
+            assert(workingrate > 0);
+			workingrate = MIN(workingrate / pcpu * limit, 1.0);
+			twork.tv_nsec = TIME_SLOT * 1000 * workingrate;//working rate is the percentage of time slot that is in use.
 		}
 		tsleep.tv_nsec = TIME_SLOT * 1000 - twork.tv_nsec;
 

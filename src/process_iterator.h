@@ -58,7 +58,7 @@ struct process {
 	//start time (unix timestamp)
 	int starttime;
 	//cputime used by the process (in milliseconds)
-	int cputime;
+	uint64_t cputime;
 	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
 	//absolute path of the executable file
