@@ -49,10 +49,6 @@
 #include <kvm.h>
 #endif
 
-#ifdef __APPLE__
-#include <mach/task.h>
-#endif
-
 // process descriptor
 struct process {
 	//pid of the process
@@ -65,10 +61,6 @@ struct process {
 	int cputime;
 	//actual cpu usage estimation (value in range 0-1)
 	double cpu_usage;
-#ifdef __APPLE__
-    struct timeval total_time;
-    task_t task;//remeber to init as MACH_PORT_NULL
-#endif
 	//absolute path of the executable file
 	char command[PATH_MAX+1];
 };
